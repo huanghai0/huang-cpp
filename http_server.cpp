@@ -134,7 +134,8 @@ void startHttpServer()
         std::cout << "收到获取学生请求，ID: " << studentId << std::endl;
         
         Student student = dbManager.getStudent(studentId);
-        if (student.getName() != "") {
+        // 检查学生是否存在，确保所有字段都有有效值
+        if (student.getName() != "" && student.getAge() > 0 && student.getClassName() != "") {
             std::string response = studentToJson(student, studentId);
             res.set_content(response, "application/json");
             std::cout << "成功返回学生信息" << std::endl;
