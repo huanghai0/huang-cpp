@@ -18,18 +18,18 @@ bool DatabaseManager::open()
     int rc = sqlite3_open(dbPath.c_str(), &db);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "无法打开数据库: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("无法打开数据库: {}", sqlite3_errmsg(db));
         return false;
     }
 
     // 创建学生表
     if (!createStudentTable())
     {
-        std::cerr << "创建学生表失败" << std::endl;
+        Logger::error("创建学生表失败");
         return false;
     }
 
-    std::cout << "数据库连接成功: " << dbPath << std::endl;
+    Logger::info("数据库连接成功: {}", dbPath);
     return true;
 }
 
@@ -54,7 +54,7 @@ bool DatabaseManager::createStudentTable()
     int rc = sqlite3_exec(db, sql, nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "SQL错误: " << errMsg << std::endl;
+        Logger::error("SQL错误: {}", errMsg);
         sqlite3_free(errMsg);
         return false;
     }
@@ -69,7 +69,7 @@ int DatabaseManager::addStudent(const Student &student)
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "准备SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
         return -1;
     }
 
@@ -80,7 +80,7 @@ int DatabaseManager::addStudent(const Student &student)
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE)
     {
-        std::cerr << "执行SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("执行SQL语句失败: {}", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return -1;
     }
@@ -98,7 +98,7 @@ bool DatabaseManager::updateStudent(int id, const Student &student)
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "准备SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
         return false;
     }
 
@@ -110,7 +110,7 @@ bool DatabaseManager::updateStudent(int id, const Student &student)
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE)
     {
-        std::cerr << "执行SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("执行SQL语句失败: {}", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return false;
     }
@@ -127,7 +127,7 @@ bool DatabaseManager::deleteStudent(int id)
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "准备SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
         return false;
     }
 
@@ -136,7 +136,7 @@ bool DatabaseManager::deleteStudent(int id)
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE)
     {
-        std::cerr << "执行SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("执行SQL语句失败: {}", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return false;
     }
@@ -153,7 +153,7 @@ Student DatabaseManager::getStudent(int id)
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "准备SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
         return Student();
     }
 
@@ -182,7 +182,7 @@ std::vector<std::pair<int, Student>> DatabaseManager::getAllStudents()
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "准备SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
         return students;
     }
 
@@ -207,7 +207,7 @@ int DatabaseManager::getStudentCount()
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "准备SQL语句失败: " << sqlite3_errmsg(db) << std::endl;
+        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
         return -1;
     }
 

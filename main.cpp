@@ -1,4 +1,5 @@
 #include <iostream>
+#include "logger.h"
 
 // 声明集合示例函数
 void vector_example();
@@ -13,7 +14,14 @@ void startHttpServer();
 
 int main()
 {
-    std::cout << "Hello, World! This is huangh-cpp project." << std::endl;
+    // 初始化日志系统
+    if (!Logger::initialize("server.log"))
+    {
+        std::cerr << "Failed to initialize logger" << std::endl;
+        return -1;
+    }
+
+    Logger::info("Hello, World! This is huangh-cpp project.");
 
     // 选择运行模式
     std::cout << "\n请选择运行模式:" << std::endl;

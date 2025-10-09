@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add the executable
-add_executable(${PROJECT_NAME} main.cpp collections_example.cpp http_server.cpp database_manager.cpp)
+add_executable(${PROJECT_NAME} main.cpp collections_example.cpp http_server.cpp database_manager.cpp logger.cpp)
 
 # Set output directory for executables
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -21,4 +21,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # target_link_libraries(${PROJECT_NAME} SomePackage::SomePackage)
 
 # Add httplib library
-target_link_libraries(${PROJECT_NAME} pthread sqlite3)
+target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog fmt)

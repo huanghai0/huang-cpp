@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include "student.h"
+#include "logger.h"
 
 class DatabaseManager
 {

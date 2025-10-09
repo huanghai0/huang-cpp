@@ -5,6 +5,7 @@
 #include "httplib.h"
 #include "student.h"
 #include "database_manager.h"
+#include "logger.h"
 
 // 全局数据库管理器
 DatabaseManager dbManager;
@@ -76,7 +77,7 @@ void startHttpServer()
     // 打开数据库连接
     if (!dbManager.open())
     {
-        std::cerr << "数据库连接失败，无法启动服务器" << std::endl;
+        Logger::error("数据库连接失败，无法启动服务器");
         return;
     }
 
@@ -85,7 +86,7 @@ void startHttpServer()
     // 添加学生信息 - POST /students
     svr.Post("/students", [](const httplib::Request &req, httplib::Response &res)
              {
-        std::cout << "收到添加学生请求: " << req.body << std::endl;
+        Logger::info("收到添加学生请求: {}", req.body);
         
         try {
             Student student = parseStudentFromJson(req.body);
@@ -94,22 +95,22 @@ void startHttpServer()
             if (studentId > 0) {
                 std::string response = studentToJson(student, studentId);
                 res.set_content(response, "application/json");
-                std::cout << "成功添加学生，ID: " << studentId << std::endl;
+                Logger::info("成功添加学生，ID: {}", studentId);
             } else {
                 res.status = 500;
                 res.set_content("{\"error\":\"数据库操作失败\"}", "application/json");
-                std::cout << "添加学生失败" << std::endl;
+                Logger::error("添加学生失败");
             }
         } catch (const std::exception& e) {
             res.status = 400;
             res.set_content("{\"error\":\"无效的学生数据\"}", "application/json");
-            std::cout << "添加学生失败: " << e.what() << std::endl;
+            Logger::error("添加学生失败: {}", e.what());
         } });
 
     // 获取所有学生信息 - GET /students
     svr.Get("/students", [](const httplib::Request &req, httplib::Response &res)
             {
-        std::cout << "收到获取所有学生请求" << std::endl;
+        Logger::info("收到获取所有学生请求");
         
         auto students = dbManager.getAllStudents();
         std::stringstream ss;
@@ -125,31 +126,31 @@ void startHttpServer()
         ss << "]";
         
         res.set_content(ss.str(), "application/json");
-        std::cout << "返回 " << students.size() << " 个学生信息" << std::endl; });
+        Logger::info("返回 {} 个学生信息", students.size()); });
 
     // 获取特定学生信息 - GET /students/{id}
     svr.Get(R"(/students/(\d+))", [](const httplib::Request &req, httplib::Response &res)
             {
         int studentId = std::stoi(req.matches[1]);
-        std::cout << "收到获取学生请求，ID: " << studentId << std::endl;
+        Logger::info("收到获取学生请求，ID: {}", studentId);
         
         Student student = dbManager.getStudent(studentId);
         // 检查学生是否存在，确保所有字段都有有效值
         if (student.getName() != "" && student.getAge() > 0 && student.getClassName() != "") {
             std::string response = studentToJson(student, studentId);
             res.set_content(response, "application/json");
-            std::cout << "成功返回学生信息" << std::endl;
+            Logger::info("成功返回学生信息");
         } else {
             res.status = 404;
             res.set_content("{\"error\":\"学生不存在\"}", "application/json");
-            std::cout << "学生不存在，ID: " << studentId << std::endl;
+            Logger::warn("学生不存在，ID: {}", studentId);
         } });
 
     // 更新学生信息 - PUT /students/{id}
     svr.Put(R"(/students/(\d+))", [](const httplib::Request &req, httplib::Response &res)
             {
         int studentId = std::stoi(req.matches[1]);
-        std::cout << "收到更新学生请求，ID: " << studentId << " 数据: " << req.body << std::endl;
+        Logger::info("收到更新学生请求，ID: {} 数据: {}", studentId, req.body);
         
         try {
             Student student = parseStudentFromJson(req.body);
@@ -158,32 +159,32 @@ void startHttpServer()
             if (success) {
                 std::string response = studentToJson(student, studentId);
                 res.set_content(response, "application/json");
-                std::cout << "成功更新学生信息" << std::endl;
+                Logger::info("成功更新学生信息");
             } else {
                 res.status = 404;
                 res.set_content("{\"error\":\"学生不存在\"}", "application/json");
-                std::cout << "学生不存在，ID: " << studentId << std::endl;
+                Logger::warn("学生不存在，ID: {}", studentId);
             }
         } catch (const std::exception& e) {
             res.status = 400;
             res.set_content("{\"error\":\"无效的学生数据\"}", "application/json");
-            std::cout << "更新学生失败: " << e.what() << std::endl;
+            Logger::error("更新学生失败: {}", e.what());
         } });
 
     // 删除学生信息 - DELETE /students/{id}
     svr.Delete(R"(/students/(\d+))", [](const httplib::Request &req, httplib::Response &res)
                {
         int studentId = std::stoi(req.matches[1]);
-        std::cout << "收到删除学生请求，ID: " << studentId << std::endl;
+        Logger::info("收到删除学生请求，ID: {}", studentId);
         
         bool success = dbManager.deleteStudent(studentId);
         if (success) {
             res.set_content("{\"message\":\"学生删除成功\"}", "application/json");
-            std::cout << "成功删除学生" << std::endl;
+            Logger::info("成功删除学生");
         } else {
             res.status = 404;
             res.set_content("{\"error\":\"学生不存在\"}", "application/json");
-            std::cout << "学生不存在，ID: " << studentId << std::endl;
+            Logger::warn("学生不存在，ID: {}", studentId);
         } });
 
     // 健康检查接口
@@ -197,14 +198,15 @@ void startHttpServer()
             res.set_content("{\"error\":\"数据库查询失败\"}", "application/json");
         } });
 
-    std::cout << "HTTP服务器启动在 http://localhost:8080" << std::endl;
-    std::cout << "可用接口:" << std::endl;
-    std::cout << "  POST   /students     - 添加学生" << std::endl;
-    std::cout << "  GET    /students     - 获取所有学生" << std::endl;
-    std::cout << "  GET    /students/{id} - 获取特定学生" << std::endl;
-    std::cout << "  PUT    /students/{id} - 更新学生" << std::endl;
-    std::cout << "  DELETE /students/{id} - 删除学生" << std::endl;
-    std::cout << "  GET    /health       - 健康检查" << std::endl;
+    Logger::info("HTTP服务器启动在 http://localhost:8080");
+    Logger::info("可用接口:");
+    Logger::info("  POST   /students     - 添加学生");
+    Logger::info("  GET    /students     - 获取所有学生");
+    Logger::info("  GET    /students/{{id}} - 获取特定学生");
+    Logger::info("  PUT    /students/{{id}} - 更新学生");
+    Logger::info("  DELETE /students/{{id}} - 删除学生");
+    Logger::info("  GET    /health       - 健康检查");
 
+    Logger::info("开始监听端口 8080...");
     svr.listen("localhost", 8080);
 }
