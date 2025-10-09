@@ -16,9 +16,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Include directories if needed
 # include_directories(include)
 
-# Add any libraries if needed
-# find_package(SomePackage REQUIRED)
-# target_link_libraries(${PROJECT_NAME} SomePackage::SomePackage)
+# Find nlohmann_json package
+find_package(nlohmann_json REQUIRED)
 
 # Add httplib library
-target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog fmt)
+target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog fmt nlohmann_json::nlohmann_json)

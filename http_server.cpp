@@ -2,73 +2,57 @@
 #include <map>
 #include <string>
 #include <sstream>
+#include <nlohmann/json.hpp>
 #include "httplib.h"
 #include "student.h"
 #include "database_manager.h"
 #include "logger.h"
 
+using json = nlohmann::json;
+
 // 全局数据库管理器
 DatabaseManager dbManager;
 
-// 解析JSON格式的学生信息（简化版）
+// 解析JSON格式的学生信息（使用nlohmann/json库）
 Student parseStudentFromJson(const std::string &jsonStr)
 {
-    std::string name = "";
-    int age = 0;
-    std::string className = "";
-
-    // 简单的JSON解析（实际项目中应该使用JSON库）
-    size_t namePos = jsonStr.find("\"name\":\"");
-    if (namePos != std::string::npos)
+    try
     {
-        size_t nameStart = namePos + 8;
-        size_t nameEnd = jsonStr.find("\"", nameStart);
-        if (nameEnd != std::string::npos)
-        {
-            name = jsonStr.substr(nameStart, nameEnd - nameStart);
-        }
-    }
+        json j = json::parse(jsonStr);
 
-    size_t agePos = jsonStr.find("\"age\":");
-    if (agePos != std::string::npos)
+        std::string name = j.value("name", "");
+        int age = j.value("age", 0);
+        std::string className = j.value("className", "");
+
+        return Student(name, age, className);
+    }
+    catch (const json::parse_error &e)
     {
-        size_t ageStart = agePos + 6;
-        size_t ageEnd = jsonStr.find_first_of(",}", ageStart);
-        if (ageEnd != std::string::npos)
-        {
-            std::string ageStr = jsonStr.substr(ageStart, ageEnd - ageStart);
-            age = std::stoi(ageStr);
-        }
+        Logger::error("JSON解析错误: {}", e.what());
+        throw std::runtime_error("无效的JSON格式");
     }
-
-    size_t classPos = jsonStr.find("\"className\":\"");
-    if (classPos != std::string::npos)
+    catch (const json::exception &e)
     {
-        size_t classStart = classPos + 13;
-        size_t classEnd = jsonStr.find("\"", classStart);
-        if (classEnd != std::string::npos)
-        {
-            className = jsonStr.substr(classStart, classEnd - classStart);
-        }
+        Logger::error("JSON处理错误: {}", e.what());
+        throw std::runtime_error("JSON处理失败");
     }
-
-    return Student(name, age, className);
 }
 
-// 将Student对象转换为JSON字符串
+// 将Student对象转换为JSON字符串（使用nlohmann/json库）
 std::string studentToJson(const Student &student, int id = -1)
 {
-    std::stringstream ss;
-    ss << "{";
+    json j;
+
     if (id != -1)
     {
-        ss << "\"id\":" << id << ",";
+        j["id"] = id;
     }
-    ss << "\"name\":\"" << student.getName() << "\",";
-    ss << "\"age\":" << student.getAge() << ",";
-    ss << "\"className\":\"" << student.getClassName() << "\"";
-    ss << "}";
-    return ss.str();
+
+    j["name"] = student.getName();
+    j["age"] = student.getAge();
+    j["className"] = student.getClassName();
+
+    return j.dump();
 }
 
 // 启动HTTP服务器
@@ -98,12 +82,16 @@ void startHttpServer()
                 Logger::info("成功添加学生，ID: {}", studentId);
             } else {
                 res.status = 500;
-                res.set_content("{\"error\":\"数据库操作失败\"}", "application/json");
+                json errorJson;
+                errorJson["error"] = "数据库操作失败";
+                res.set_content(errorJson.dump(), "application/json");
                 Logger::error("添加学生失败");
             }
         } catch (const std::exception& e) {
             res.status = 400;
-            res.set_content("{\"error\":\"无效的学生数据\"}", "application/json");
+            json errorJson;
+            errorJson["error"] = "无效的学生数据";
+            res.set_content(errorJson.dump(), "application/json");
             Logger::error("添加学生失败: {}", e.what());
         } });
 
@@ -113,19 +101,18 @@ void startHttpServer()
         Logger::info("收到获取所有学生请求");
         
         auto students = dbManager.getAllStudents();
-        std::stringstream ss;
-        ss << "[";
-        bool first = true;
-        for (const auto& pair : students) {
-            if (!first) {
-                ss << ",";
-            }
-            ss << studentToJson(pair.second, pair.first);
-            first = false;
-        }
-        ss << "]";
+        json j = json::array();
         
-        res.set_content(ss.str(), "application/json");
+        for (const auto& pair : students) {
+            json studentJson;
+            studentJson["id"] = pair.first;
+            studentJson["name"] = pair.second.getName();
+            studentJson["age"] = pair.second.getAge();
+            studentJson["className"] = pair.second.getClassName();
+            j.push_back(studentJson);
+        }
+        
+        res.set_content(j.dump(), "application/json");
         Logger::info("返回 {} 个学生信息", students.size()); });
 
     // 获取特定学生信息 - GET /students/{id}
@@ -142,7 +129,9 @@ void startHttpServer()
             Logger::info("成功返回学生信息");
         } else {
             res.status = 404;
-            res.set_content("{\"error\":\"学生不存在\"}", "application/json");
+            json errorJson;
+            errorJson["error"] = "学生不存在";
+            res.set_content(errorJson.dump(), "application/json");
             Logger::warn("学生不存在，ID: {}", studentId);
         } });
 
@@ -162,12 +151,16 @@ void startHttpServer()
                 Logger::info("成功更新学生信息");
             } else {
                 res.status = 404;
-                res.set_content("{\"error\":\"学生不存在\"}", "application/json");
+                json errorJson;
+                errorJson["error"] = "学生不存在";
+                res.set_content(errorJson.dump(), "application/json");
                 Logger::warn("学生不存在，ID: {}", studentId);
             }
         } catch (const std::exception& e) {
             res.status = 400;
-            res.set_content("{\"error\":\"无效的学生数据\"}", "application/json");
+            json errorJson;
+            errorJson["error"] = "无效的学生数据";
+            res.set_content(errorJson.dump(), "application/json");
             Logger::error("更新学生失败: {}", e.what());
         } });
 
@@ -179,11 +172,15 @@ void startHttpServer()
         
         bool success = dbManager.deleteStudent(studentId);
         if (success) {
-            res.set_content("{\"message\":\"学生删除成功\"}", "application/json");
+            json successJson;
+            successJson["message"] = "学生删除成功";
+            res.set_content(successJson.dump(), "application/json");
             Logger::info("成功删除学生");
         } else {
             res.status = 404;
-            res.set_content("{\"error\":\"学生不存在\"}", "application/json");
+            json errorJson;
+            errorJson["error"] = "学生不存在";
+            res.set_content(errorJson.dump(), "application/json");
             Logger::warn("学生不存在，ID: {}", studentId);
         } });
 
@@ -191,11 +188,16 @@ void startHttpServer()
     svr.Get("/health", [](const httplib::Request &req, httplib::Response &res)
             { 
         int count = dbManager.getStudentCount();
+        json j;
+        
         if (count >= 0) {
-            res.set_content("{\"status\":\"ok\",\"students_count\":" + std::to_string(count) + "}", "application/json");
+            j["status"] = "ok";
+            j["students_count"] = count;
+            res.set_content(j.dump(), "application/json");
         } else {
             res.status = 500;
-            res.set_content("{\"error\":\"数据库查询失败\"}", "application/json");
+            j["error"] = "数据库查询失败";
+            res.set_content(j.dump(), "application/json");
         } });
 
     Logger::info("HTTP服务器启动在 http://localhost:8080");
