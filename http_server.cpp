@@ -7,6 +7,7 @@
 #include "student.h"
 #include "database_manager.h"
 #include "logger.h"
+#include "Timer.h"
 
 using json = nlohmann::json;
 
@@ -98,6 +99,7 @@ void startHttpServer()
     // 获取所有学生信息 - GET /students
     svr.Get("/students", [](const httplib::Request &req, httplib::Response &res)
             {
+        Timer timer;
         Logger::info("收到获取所有学生请求");
         
         auto students = dbManager.getAllStudents();

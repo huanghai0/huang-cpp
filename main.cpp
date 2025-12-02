@@ -1,5 +1,8 @@
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include "logger.h"
+
+using json = nlohmann::json;
 
 // 声明集合示例函数
 void vector_example();
@@ -22,6 +25,10 @@ int main()
     }
 
     Logger::info("Hello, World! This is huangh-cpp project.");
+
+    std::unordered_map<const char *, double> c_umap{{"one", 1.2}, {"two", 2.3}, {"three", 3.4}};
+    json j_umap(c_umap);
+    Logger::info("JSON from unordered_map: {}", j_umap.dump());
 
     // 选择运行模式
     std::cout << "\n请选择运行模式:" << std::endl;
