@@ -104,7 +104,7 @@ int DatabaseManager::addStudent(const Student &student)
     sqlite3_finalize(stmt);
 
     // 清除所有学生列表缓存，因为列表已变化
-    clearStudentsCache();
+    // clearStudentsCache();
 
     // 更新该学生的缓存
     updateStudentCache(studentId, student);
@@ -145,7 +145,7 @@ bool DatabaseManager::updateStudent(int id, const Student &student)
     {
         // 清除相关缓存
         clearStudentCache(id);
-        clearStudentsCache();
+        // clearStudentsCache();
         // 更新该学生的缓存
         updateStudentCache(id, student);
         Logger::info("更新学生成功，ID: {}，已更新缓存", id);
@@ -183,7 +183,7 @@ bool DatabaseManager::deleteStudent(int id)
     {
         // 清除相关缓存
         clearStudentCache(id);
-        clearStudentsCache();
+        // clearStudentsCache();
         Logger::info("删除学生成功，ID: {}，已清除缓存", id);
     }
 
@@ -240,37 +240,38 @@ Student DatabaseManager::getStudent(int id)
 
 std::vector<std::pair<int, Student>> DatabaseManager::getAllStudents()
 {
+
     // 尝试从缓存获取
-    std::string cacheKey = "students:all";
-    std::string cachedStudents = redisManager.get(cacheKey);
+    // std::string cacheKey = "students:all";
+    // std::string cachedStudents = redisManager.get(cacheKey);
 
-    if (!cachedStudents.empty())
-    {
-        try
-        {
-            json j = json::parse(cachedStudents);
-            std::vector<std::pair<int, Student>> students;
+    // if (!cachedStudents.empty())
+    // {
+    //     try
+    //     {
+    //         json j = json::parse(cachedStudents);
+    //         std::vector<std::pair<int, Student>> students;
 
-            for (const auto &item : j)
-            {
-                int id = item.value("id", 0);
-                std::string name = item.value("name", "");
-                int age = item.value("age", 0);
-                std::string className = item.value("className", "");
-                students.emplace_back(id, Student(name, age, className));
-            }
+    //         for (const auto &item : j)
+    //         {
+    //             int id = item.value("id", 0);
+    //             std::string name = item.value("name", "");
+    //             int age = item.value("age", 0);
+    //             std::string className = item.value("className", "");
+    //             students.emplace_back(id, Student(name, age, className));
+    //         }
 
-            if (!students.empty())
-            {
-                Logger::info("从缓存获取所有学生，数量: {}", students.size());
-                return students;
-            }
-        }
-        catch (const json::parse_error &e)
-        {
-            Logger::error("缓存中学生列表解析失败: {}", e.what());
-        }
-    }
+    //         if (!students.empty())
+    //         {
+    //             Logger::info("从缓存获取所有学生，数量: {}", students.size());
+    //             return students;
+    //         }
+    //     }
+    //     catch (const json::parse_error &e)
+    //     {
+    //         Logger::error("缓存中学生列表解析失败: {}", e.what());
+    //     }
+    // }
 
     // 缓存未命中，查询数据库
     std::vector<std::pair<int, Student>> students;
@@ -296,17 +297,17 @@ std::vector<std::pair<int, Student>> DatabaseManager::getAllStudents()
     sqlite3_finalize(stmt);
 
     // 写入缓存（即使为空也写入）
-    json j = json::array();
-    for (const auto &pair : students)
-    {
-        json studentJson;
-        studentJson["id"] = pair.first;
-        studentJson["name"] = pair.second.getName();
-        studentJson["age"] = pair.second.getAge();
-        studentJson["className"] = pair.second.getClassName();
-        j.push_back(studentJson);
-    }
-    redisManager.set(cacheKey, j.dump(), 60); // 1分钟过期
+    // json j = json::array();
+    // for (const auto &pair : students)
+    // {
+    //     json studentJson;
+    //     studentJson["id"] = pair.first;
+    //     studentJson["name"] = pair.second.getName();
+    //     studentJson["age"] = pair.second.getAge();
+    //     studentJson["className"] = pair.second.getClassName();
+    //     j.push_back(studentJson);
+    // }
+    // redisManager.set(cacheKey, j.dump(), 60); // 1分钟过期
     Logger::info("从数据库获取所有学生，数量: {}，已写入缓存", students.size());
 
     return students;
@@ -385,7 +386,7 @@ Student DatabaseManager::studentFromCacheString(const std::string &cacheStr) con
 void DatabaseManager::clearStudentsCache()
 {
     // 清除所有学生列表缓存
-    redisManager.del("students:all");
+    // redisManager.del("students:all");
     redisManager.del("students:count");
 }
 

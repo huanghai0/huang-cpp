@@ -27,7 +27,7 @@ private:
     void updateStudentCache(int id, const Student &student);
 
 public:
-    DatabaseManager(const std::string &path = "students.db",
+    DatabaseManager(const std::string &path = "../data/students.db",
                     const std::string &redisHost = "192.168.2.146",
                     int redisPort = 6379);
     ~DatabaseManager();
