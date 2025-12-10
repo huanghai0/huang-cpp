@@ -15,7 +15,7 @@ void student_collections_example();
 // 声明HTTP服务器函数
 void startHttpServer();
 
-int main()
+int main(int argc, char *argv[])
 {
     // 初始化日志系统
     if (!Logger::initialize("server.log"))
@@ -36,8 +36,7 @@ int main()
     std::cout << "2. 启动HTTP服务器" << std::endl;
     std::cout << "请输入选择 (1 或 2): ";
 
-    int choice;
-    std::cin >> choice;
+    int choice = argc > 1 ? std::stoi(argv[1]) : 0;
 
     if (choice == 1)
     {

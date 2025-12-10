@@ -11,8 +11,8 @@
 
 using json = nlohmann::json;
 
-// 全局数据库管理器
-DatabaseManager dbManager;
+// 全局数据库管理器（使用Redis缓存）
+DatabaseManager dbManager("students.db", "192.168.2.146", 6379);
 
 // 解析JSON格式的学生信息（使用nlohmann/json库）
 Student parseStudentFromJson(const std::string &jsonStr)
