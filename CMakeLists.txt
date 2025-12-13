@@ -22,10 +22,17 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Include directories
 include_directories(include/huangh-cpp)
-include_directories(third_party)
+include_directories(third_party) 
 
 # Find nlohmann_json package
+find_package(fmt REQUIRED)
+find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# Add httplib library
-target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog fmt nlohmann_json::nlohmann_json hiredis)
+if (APPLE)
+    include_directories(/opt/homebrew/include)
+    # Add httplib library
+    target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog::spdlog fmt::fmt nlohmann_json::nlohmann_json /opt/homebrew/lib/libhiredis.dylib)
+else()
+    target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog::spdlog fmt::fmt nlohmann_json::nlohmann_json hiredis)
+endif()
