@@ -8,6 +8,7 @@
 #include "student.h"
 #include "logger.h"
 #include "redis_manager.h"
+#include "config_manager.h"
 
 class DatabaseManager
 {
@@ -15,6 +16,7 @@ private:
     sqlite3 *db;
     std::string dbPath;
     RedisManager redisManager;
+    const ConfigManager *configManager;
 
     // 创建学生表
     bool createStudentTable();
@@ -27,9 +29,13 @@ private:
     void updateStudentCache(int id, const Student &student);
 
 public:
+    DatabaseManager(const ConfigManager &configManager);
     DatabaseManager(const std::string &path = "../data/students.db",
                     const std::string &redisHost = "192.168.2.146",
                     int redisPort = 6379);
+
+    // 获取配置管理器
+    const ConfigManager *getConfigManager() const { return configManager; }
     ~DatabaseManager();
 
     // 数据库连接管理

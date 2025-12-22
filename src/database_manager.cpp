@@ -8,8 +8,16 @@
 
 using json = nlohmann::json;
 
+DatabaseManager::DatabaseManager(const ConfigManager &configManager)
+    : db(nullptr),
+      dbPath(configManager.getDatabasePath()),
+      redisManager(configManager.getRedisHost(), configManager.getRedisPort()),
+      configManager(&configManager)
+{
+}
+
 DatabaseManager::DatabaseManager(const std::string &path, const std::string &redisHost, int redisPort)
-    : db(nullptr), dbPath(path), redisManager(redisHost, redisPort)
+    : db(nullptr), dbPath(path), redisManager(redisHost, redisPort), configManager(nullptr)
 {
 }
 
@@ -308,7 +316,7 @@ std::vector<std::pair<int, Student>> DatabaseManager::getAllStudents()
     //     j.push_back(studentJson);
     // }
     // redisManager.set(cacheKey, j.dump(), 60); // 1分钟过期
-    Logger::info("从数据库获取所有学生，数量: {}，已写入缓存", students.size());
+    Logger::info("从数据库获取所有学生，数量: {}", students.size());
 
     return students;
 }
@@ -347,8 +355,13 @@ int DatabaseManager::getStudentCount()
         int count = sqlite3_column_int(stmt, 0);
         sqlite3_finalize(stmt);
 
-        // 写入缓存，设置30秒过期时间
-        redisManager.set(cacheKey, std::to_string(count), 30);
+        // 写入缓存，设置过期时间
+        int expireSeconds = 30; // 默认值
+        if (configManager)
+        {
+            expireSeconds = configManager->getCountCacheExpire();
+        }
+        redisManager.set(cacheKey, std::to_string(count), expireSeconds);
         return count;
     }
 
@@ -400,5 +413,11 @@ void DatabaseManager::updateStudentCache(int id, const Student &student)
 {
     std::string cacheKey = "student:" + std::to_string(id);
     std::string cacheValue = studentToCacheString(student);
-    redisManager.set(cacheKey, cacheValue, 300); // 5分钟过期
+    // 使用配置管理器获取过期时间，如果没有配置管理器则使用默认值
+    int expireSeconds = 300; // 默认5分钟
+    if (configManager)
+    {
+        expireSeconds = configManager->getStudentCacheExpire();
+    }
+    redisManager.set(cacheKey, cacheValue, expireSeconds);
 }

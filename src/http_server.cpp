@@ -6,13 +6,17 @@
 #include "httplib.h"
 #include "student.h"
 #include "database_manager.h"
+#include "config_manager.h"
 #include "logger.h"
 #include "Timer.h"
 
 using json = nlohmann::json;
 
+// 全局配置管理器
+ConfigManager configManager;
+
 // 全局数据库管理器（使用Redis缓存）
-DatabaseManager dbManager; // 使用默认路径 data/students.db 和 Redis 服务器 192.168.2.146:6379
+DatabaseManager dbManager(configManager);
 
 // 解析JSON格式的学生信息（使用nlohmann/json库）
 Student parseStudentFromJson(const std::string &jsonStr)
@@ -67,6 +71,10 @@ void startHttpServer()
     }
 
     httplib::Server svr;
+
+    // 使用配置中的服务器设置
+    std::string serverHost = configManager.getServerHost();
+    int serverPort = configManager.getServerPort();
 
     // 添加学生信息 - POST /students
     svr.Post("/students", [](const httplib::Request &req, httplib::Response &res)
@@ -211,6 +219,6 @@ void startHttpServer()
     Logger::info("  DELETE /students/{{id}} - 删除学生");
     Logger::info("  GET    /health       - 健康检查");
 
-    Logger::info("开始监听端口 8080...");
-    svr.listen("localhost", 8080);
+    Logger::info("开始监听端口 {}...", serverPort);
+    svr.listen(serverHost.c_str(), serverPort);
 }
