@@ -15,6 +15,7 @@ add_executable(${PROJECT_NAME}
     src/database_manager.cpp
     src/logger.cpp
     src/redis_manager.cpp
+    src/config_manager.cpp
 )
 
 # Set output directory for executables
