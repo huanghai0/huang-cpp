@@ -8,7 +8,7 @@
 #include "database_manager.h"
 #include "config_manager.h"
 #include "logger.h"
-#include "Timer.h"
+#include "timer.h"
 
 using json = nlohmann::json;
 
