@@ -2,6 +2,9 @@
 #include <map>
 #include <string>
 #include <sstream>
+#include <fstream>
+#include <vector>
+#include <filesystem>
 #include <nlohmann/json.hpp>
 #include "httplib.h"
 #include "student.h"
@@ -11,12 +14,6 @@
 #include "timer.h"
 
 using json = nlohmann::json;
-
-// 全局配置管理器
-ConfigManager configManager;
-
-// 全局数据库管理器（使用Redis缓存）
-DatabaseManager dbManager(configManager);
 
 // 解析JSON格式的学生信息（使用nlohmann/json库）
 Student parseStudentFromJson(const std::string &jsonStr)
@@ -60,9 +57,63 @@ std::string studentToJson(const Student &student, int id = -1)
     return j.dump();
 }
 
+// 查找配置文件
+std::string findConfigFile()
+{
+    // 尝试多个可能的位置
+    std::vector<std::string> possiblePaths = {
+        "config.json",                        // 当前目录
+        "../config.json",                     // 上一级目录
+        "../../config.json",                  // 上两级目录
+        "/home/eruda/huangh-cpp/config.json", // 绝对路径
+        "build/../config.json"                // 从build目录
+    };
+
+    for (const auto &path : possiblePaths)
+    {
+        std::ifstream file(path);
+        if (file.good())
+        {
+            Logger::info("找到配置文件: {}", path);
+            return path;
+        }
+    }
+
+    return "config.json"; // 默认
+}
+
 // 启动HTTP服务器
 void startHttpServer()
 {
+    // 查找并创建配置管理器
+    std::string configPath = findConfigFile();
+    ConfigManager configManager(configPath);
+    if (!configManager.isLoaded())
+    {
+        Logger::error("配置文件加载失败，无法启动服务器");
+        Logger::error("尝试的配置文件路径: {}", configPath);
+        Logger::error("当前工作目录: {}", std::filesystem::current_path().string());
+        return;
+    }
+
+    // 输出当前数据库类型
+    std::string dbType = configManager.getDatabaseType();
+    Logger::info("当前数据库类型: {}", dbType);
+
+    if (dbType == "sqlite")
+    {
+        Logger::info("SQLite数据库路径: {}", configManager.getSqliteDatabasePath());
+    }
+    else if (dbType == "postgresql")
+    {
+        Logger::info("PostgreSQL主机: {}", configManager.getPostgresqlHost());
+        Logger::info("PostgreSQL端口: {}", configManager.getPostgresqlPort());
+        Logger::info("PostgreSQL数据库: {}", configManager.getPostgresqlDatabase());
+    }
+
+    // 创建数据库管理器
+    DatabaseManager dbManager(configManager);
+
     // 打开数据库连接
     if (!dbManager.open())
     {
@@ -77,7 +128,7 @@ void startHttpServer()
     int serverPort = configManager.getServerPort();
 
     // 添加学生信息 - POST /students
-    svr.Post("/students", [](const httplib::Request &req, httplib::Response &res)
+    svr.Post("/students", [&dbManager](const httplib::Request &req, httplib::Response &res)
              {
         Logger::info("收到添加学生请求: {}", req.body);
         
@@ -105,7 +156,7 @@ void startHttpServer()
         } });
 
     // 获取所有学生信息 - GET /students
-    svr.Get("/students", [](const httplib::Request &req, httplib::Response &res)
+    svr.Get("/students", [&dbManager](const httplib::Request &req, httplib::Response &res)
             {
         Timer timer;
         Logger::info("收到获取所有学生请求");
@@ -126,7 +177,7 @@ void startHttpServer()
         Logger::info("返回 {} 个学生信息", students.size()); });
 
     // 获取特定学生信息 - GET /students/{id}
-    svr.Get(R"(/students/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+    svr.Get(R"(/students/(\d+))", [&dbManager](const httplib::Request &req, httplib::Response &res)
             {
         int studentId = std::stoi(req.matches[1]);
         Logger::info("收到获取学生请求，ID: {}", studentId);
@@ -146,7 +197,7 @@ void startHttpServer()
         } });
 
     // 更新学生信息 - PUT /students/{id}
-    svr.Put(R"(/students/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+    svr.Put(R"(/students/(\d+))", [&dbManager](const httplib::Request &req, httplib::Response &res)
             {
         int studentId = std::stoi(req.matches[1]);
         Logger::info("收到更新学生请求，ID: {} 数据: {}", studentId, req.body);
@@ -175,7 +226,7 @@ void startHttpServer()
         } });
 
     // 删除学生信息 - DELETE /students/{id}
-    svr.Delete(R"(/students/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+    svr.Delete(R"(/students/(\d+))", [&dbManager](const httplib::Request &req, httplib::Response &res)
                {
         int studentId = std::stoi(req.matches[1]);
         Logger::info("收到删除学生请求，ID: {}", studentId);
@@ -195,7 +246,7 @@ void startHttpServer()
         } });
 
     // 健康检查接口
-    svr.Get("/health", [](const httplib::Request &req, httplib::Response &res)
+    svr.Get("/health", [&dbManager](const httplib::Request &req, httplib::Response &res)
             { 
         int count = dbManager.getStudentCount();
         json j;
@@ -210,7 +261,7 @@ void startHttpServer()
             res.set_content(j.dump(), "application/json");
         } });
 
-    Logger::info("HTTP服务器启动在 http://localhost:8080");
+    Logger::info("HTTP服务器启动在 http://{}:{}", serverHost, serverPort);
     Logger::info("可用接口:");
     Logger::info("  POST   /students     - 添加学生");
     Logger::info("  GET    /students     - 获取所有学生");

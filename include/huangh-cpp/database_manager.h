@@ -1,25 +1,23 @@
 #ifndef DATABASE_MANAGER_H
 #define DATABASE_MANAGER_H
 
-#include <sqlite3.h>
 #include <string>
 #include <vector>
-#include <iostream>
+#include <memory>
 #include "student.h"
 #include "logger.h"
 #include "redis_manager.h"
 #include "config_manager.h"
+#include "database_interface.h"
+#include "sqlite_database.h"
+#include "postgresql_database.h"
 
 class DatabaseManager
 {
 private:
-    sqlite3 *db;
-    std::string dbPath;
+    std::unique_ptr<DatabaseInterface> database;
     RedisManager redisManager;
     const ConfigManager *configManager;
-
-    // 创建学生表
-    bool createStudentTable();
 
     // 缓存相关方法
     std::string studentToCacheString(const Student &student) const;
@@ -27,6 +25,9 @@ private:
     void clearStudentsCache();
     void clearStudentCache(int id);
     void updateStudentCache(int id, const Student &student);
+
+    // 根据配置创建数据库实例
+    std::unique_ptr<DatabaseInterface> createDatabase();
 
 public:
     DatabaseManager(const ConfigManager &configManager);
@@ -49,6 +50,9 @@ public:
     Student getStudent(int id);
     std::vector<std::pair<int, Student>> getAllStudents();
     int getStudentCount();
+
+    // 获取当前数据库类型
+    std::string getDatabaseType() const;
 };
 
 #endif // DATABASE_MANAGER_H

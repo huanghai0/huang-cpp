@@ -19,8 +19,19 @@ public:
     ConfigManager(const std::string &path = "config.json");
 
     // 数据库配置
-    std::string getDatabasePath() const;
     std::string getDatabaseType() const;
+
+    // SQLite配置
+    std::string getSqliteDatabasePath() const;
+
+    // PostgreSQL配置
+    std::string getPostgresqlHost() const;
+    int getPostgresqlPort() const;
+    std::string getPostgresqlDatabase() const;
+    std::string getPostgresqlUsername() const;
+    std::string getPostgresqlPassword() const;
+    int getPostgresqlConnectionPoolSize() const;
+    int getPostgresqlConnectionTimeout() const;
 
     // Redis配置
     std::string getRedisHost() const;

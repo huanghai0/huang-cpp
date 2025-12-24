@@ -36,20 +36,92 @@ bool ConfigManager::loadConfig()
     }
 }
 
-std::string ConfigManager::getDatabasePath() const
-{
-    if (!loaded)
-        return "../data/students.db";
-
-    return config.value("database", json::object()).value("path", "../data/students.db");
-}
-
 std::string ConfigManager::getDatabaseType() const
 {
     if (!loaded)
         return "sqlite";
 
     return config.value("database", json::object()).value("type", "sqlite");
+}
+
+std::string ConfigManager::getSqliteDatabasePath() const
+{
+    if (!loaded)
+        return "../data/students.db";
+
+    return config.value("database", json::object())
+        .value("sqlite", json::object())
+        .value("path", "../data/students.db");
+}
+
+std::string ConfigManager::getPostgresqlHost() const
+{
+    if (!loaded)
+        return "192.168.2.146";
+
+    return config.value("database", json::object())
+        .value("postgresql", json::object())
+        .value("host", "192.168.2.146");
+}
+
+int ConfigManager::getPostgresqlPort() const
+{
+    if (!loaded)
+        return 5432;
+
+    return config.value("database", json::object())
+        .value("postgresql", json::object())
+        .value("port", 5432);
+}
+
+std::string ConfigManager::getPostgresqlDatabase() const
+{
+    if (!loaded)
+        return "demo1";
+
+    return config.value("database", json::object())
+        .value("postgresql", json::object())
+        .value("database", "demo1");
+}
+
+std::string ConfigManager::getPostgresqlUsername() const
+{
+    if (!loaded)
+        return "postgres";
+
+    return config.value("database", json::object())
+        .value("postgresql", json::object())
+        .value("username", "postgres");
+}
+
+std::string ConfigManager::getPostgresqlPassword() const
+{
+    if (!loaded)
+        return "deju@2025";
+
+    return config.value("database", json::object())
+        .value("postgresql", json::object())
+        .value("password", "deju@2025");
+}
+
+int ConfigManager::getPostgresqlConnectionPoolSize() const
+{
+    if (!loaded)
+        return 5;
+
+    return config.value("database", json::object())
+        .value("postgresql", json::object())
+        .value("connection_pool_size", 5);
+}
+
+int ConfigManager::getPostgresqlConnectionTimeout() const
+{
+    if (!loaded)
+        return 30;
+
+    return config.value("database", json::object())
+        .value("postgresql", json::object())
+        .value("connection_timeout", 30);
 }
 
 std::string ConfigManager::getRedisHost() const

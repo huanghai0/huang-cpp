@@ -1,5 +1,4 @@
 #include "database_manager.h"
-#include <sqlite3.h>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -8,17 +7,46 @@
 
 using json = nlohmann::json;
 
-DatabaseManager::DatabaseManager(const ConfigManager &configManager)
-    : db(nullptr),
-      dbPath(configManager.getDatabasePath()),
-      redisManager(configManager.getRedisHost(), configManager.getRedisPort()),
-      configManager(&configManager)
+std::unique_ptr<DatabaseInterface> DatabaseManager::createDatabase()
 {
+    if (!configManager)
+    {
+        Logger::error("配置管理器未初始化");
+        return nullptr;
+    }
+
+    std::string dbType = configManager->getDatabaseType();
+
+    if (dbType == "sqlite")
+    {
+        Logger::info("使用SQLite数据库");
+        return std::make_unique<SQLiteDatabase>(*configManager);
+    }
+    else if (dbType == "postgresql")
+    {
+        Logger::info("使用PostgreSQL数据库");
+        return std::make_unique<PostgreSQLDatabase>(*configManager);
+    }
+    else
+    {
+        Logger::error("不支持的数据库类型: {}", dbType);
+        return nullptr;
+    }
+}
+
+DatabaseManager::DatabaseManager(const ConfigManager &configManager)
+    : configManager(&configManager),
+      redisManager(configManager.getRedisHost(), configManager.getRedisPort())
+{
+    database = createDatabase();
 }
 
 DatabaseManager::DatabaseManager(const std::string &path, const std::string &redisHost, int redisPort)
-    : db(nullptr), dbPath(path), redisManager(redisHost, redisPort), configManager(nullptr)
+    : configManager(nullptr),
+      redisManager(redisHost, redisPort)
 {
+    // 使用默认SQLite数据库
+    database = std::make_unique<SQLiteDatabase>(path);
 }
 
 DatabaseManager::~DatabaseManager()
@@ -28,17 +56,16 @@ DatabaseManager::~DatabaseManager()
 
 bool DatabaseManager::open()
 {
-    int rc = sqlite3_open(dbPath.c_str(), &db);
-    if (rc != SQLITE_OK)
+    if (!database)
     {
-        Logger::error("无法打开数据库: {}", sqlite3_errmsg(db));
+        Logger::error("数据库实例未创建");
         return false;
     }
 
-    // 创建学生表
-    if (!createStudentTable())
+    // 打开数据库
+    if (!database->open())
     {
-        Logger::error("创建学生表失败");
+        Logger::error("数据库连接失败");
         return false;
     }
 
@@ -52,108 +79,59 @@ bool DatabaseManager::open()
         Logger::info("Redis连接成功");
     }
 
-    Logger::info("数据库连接成功: {}", dbPath);
+    Logger::info("数据库连接成功，类型: {}", getDatabaseType());
     return true;
 }
 
 void DatabaseManager::close()
 {
-    if (db)
+    if (database)
     {
-        sqlite3_close(db);
-        db = nullptr;
+        database->close();
     }
 }
 
-bool DatabaseManager::createStudentTable()
+std::string DatabaseManager::getDatabaseType() const
 {
-    const char *sql = "CREATE TABLE IF NOT EXISTS students ("
-                      "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                      "name TEXT NOT NULL,"
-                      "age INTEGER NOT NULL,"
-                      "className TEXT NOT NULL);";
-
-    char *errMsg = nullptr;
-    int rc = sqlite3_exec(db, sql, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK)
+    if (!configManager)
     {
-        Logger::error("SQL错误: {}", errMsg);
-        sqlite3_free(errMsg);
-        return false;
+        return "sqlite";
     }
-    return true;
+    return configManager->getDatabaseType();
 }
 
 int DatabaseManager::addStudent(const Student &student)
 {
-    const char *sql = "INSERT INTO students (name, age, className) VALUES (?, ?, ?);";
-    sqlite3_stmt *stmt;
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK)
+    if (!database)
     {
-        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
+        Logger::error("数据库实例未初始化");
         return -1;
     }
 
-    sqlite3_bind_text(stmt, 1, student.getName().c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, student.getAge());
-    sqlite3_bind_text(stmt, 3, student.getClassName().c_str(), -1, SQLITE_STATIC);
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE)
+    int studentId = database->addStudent(student);
+    if (studentId > 0)
     {
-        Logger::error("执行SQL语句失败: {}", sqlite3_errmsg(db));
-        sqlite3_finalize(stmt);
-        return -1;
+        // 更新该学生的缓存
+        updateStudentCache(studentId, student);
+        Logger::info("添加学生成功，ID: {}，已更新缓存", studentId);
     }
 
-    int studentId = sqlite3_last_insert_rowid(db);
-    sqlite3_finalize(stmt);
-
-    // 清除所有学生列表缓存，因为列表已变化
-    // clearStudentsCache();
-
-    // 更新该学生的缓存
-    updateStudentCache(studentId, student);
-
-    Logger::info("添加学生成功，ID: {}，已更新缓存", studentId);
     return studentId;
 }
 
 bool DatabaseManager::updateStudent(int id, const Student &student)
 {
-    const char *sql = "UPDATE students SET name = ?, age = ?, className = ? WHERE id = ?;";
-    sqlite3_stmt *stmt;
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK)
+    if (!database)
     {
-        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
+        Logger::error("数据库实例未初始化");
         return false;
     }
 
-    sqlite3_bind_text(stmt, 1, student.getName().c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, student.getAge());
-    sqlite3_bind_text(stmt, 3, student.getClassName().c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 4, id);
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE)
-    {
-        Logger::error("执行SQL语句失败: {}", sqlite3_errmsg(db));
-        sqlite3_finalize(stmt);
-        return false;
-    }
-
-    bool success = sqlite3_changes(db) > 0;
-    sqlite3_finalize(stmt);
-
+    bool success = database->updateStudent(id, student);
     if (success)
     {
         // 清除相关缓存
         clearStudentCache(id);
-        // clearStudentsCache();
         // 更新该学生的缓存
         updateStudentCache(id, student);
         Logger::info("更新学生成功，ID: {}，已更新缓存", id);
@@ -164,34 +142,17 @@ bool DatabaseManager::updateStudent(int id, const Student &student)
 
 bool DatabaseManager::deleteStudent(int id)
 {
-    const char *sql = "DELETE FROM students WHERE id = ?;";
-    sqlite3_stmt *stmt;
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK)
+    if (!database)
     {
-        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
+        Logger::error("数据库实例未初始化");
         return false;
     }
 
-    sqlite3_bind_int(stmt, 1, id);
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE)
-    {
-        Logger::error("执行SQL语句失败: {}", sqlite3_errmsg(db));
-        sqlite3_finalize(stmt);
-        return false;
-    }
-
-    bool success = sqlite3_changes(db) > 0;
-    sqlite3_finalize(stmt);
-
+    bool success = database->deleteStudent(id);
     if (success)
     {
         // 清除相关缓存
         clearStudentCache(id);
-        // clearStudentsCache();
         Logger::info("删除学生成功，ID: {}，已清除缓存", id);
     }
 
@@ -215,40 +176,25 @@ Student DatabaseManager::getStudent(int id)
     }
 
     // 缓存未命中，查询数据库
-    const char *sql = "SELECT name, age, className FROM students WHERE id = ?;";
-    sqlite3_stmt *stmt;
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK)
+    if (!database)
     {
-        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
+        Logger::error("数据库实例未初始化");
         return Student();
     }
 
-    sqlite3_bind_int(stmt, 1, id);
-
-    rc = sqlite3_step(stmt);
-    if (rc == SQLITE_ROW)
+    Student student = database->getStudent(id);
+    if (student.getName() != "" || student.getAge() > 0 || student.getClassName() != "")
     {
-        std::string name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
-        int age = sqlite3_column_int(stmt, 1);
-        std::string className = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2));
-        sqlite3_finalize(stmt);
-
-        Student student(name, age, className);
         // 写入缓存
         updateStudentCache(id, student);
         Logger::info("从数据库获取学生，ID: {}，已写入缓存", id);
-        return student;
     }
 
-    sqlite3_finalize(stmt);
-    return Student();
+    return student;
 }
 
 std::vector<std::pair<int, Student>> DatabaseManager::getAllStudents()
 {
-
     // 尝试从缓存获取
     // std::string cacheKey = "students:all";
     // std::string cachedStudents = redisManager.get(cacheKey);
@@ -282,27 +228,13 @@ std::vector<std::pair<int, Student>> DatabaseManager::getAllStudents()
     // }
 
     // 缓存未命中，查询数据库
-    std::vector<std::pair<int, Student>> students;
-    const char *sql = "SELECT id, name, age, className FROM students;";
-    sqlite3_stmt *stmt;
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK)
+    if (!database)
     {
-        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
-        return students;
+        Logger::error("数据库实例未初始化");
+        return {};
     }
 
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
-    {
-        int id = sqlite3_column_int(stmt, 0);
-        std::string name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
-        int age = sqlite3_column_int(stmt, 2);
-        std::string className = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 3));
-        students.emplace_back(id, Student(name, age, className));
-    }
-
-    sqlite3_finalize(stmt);
+    std::vector<std::pair<int, Student>> students = database->getAllStudents();
 
     // 写入缓存（即使为空也写入）
     // json j = json::array();
@@ -339,22 +271,15 @@ int DatabaseManager::getStudentCount()
     }
 
     // 缓存未命中，查询数据库
-    const char *sql = "SELECT COUNT(*) FROM students;";
-    sqlite3_stmt *stmt;
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK)
+    if (!database)
     {
-        Logger::error("准备SQL语句失败: {}", sqlite3_errmsg(db));
+        Logger::error("数据库实例未初始化");
         return -1;
     }
 
-    rc = sqlite3_step(stmt);
-    if (rc == SQLITE_ROW)
+    int count = database->getStudentCount();
+    if (count >= 0)
     {
-        int count = sqlite3_column_int(stmt, 0);
-        sqlite3_finalize(stmt);
-
         // 写入缓存，设置过期时间
         int expireSeconds = 30; // 默认值
         if (configManager)
@@ -362,11 +287,9 @@ int DatabaseManager::getStudentCount()
             expireSeconds = configManager->getCountCacheExpire();
         }
         redisManager.set(cacheKey, std::to_string(count), expireSeconds);
-        return count;
     }
 
-    sqlite3_finalize(stmt);
-    return -1;
+    return count;
 }
 
 // 缓存相关方法实现

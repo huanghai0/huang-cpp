@@ -16,6 +16,8 @@ add_executable(${PROJECT_NAME}
     src/logger.cpp
     src/redis_manager.cpp
     src/config_manager.cpp
+    src/sqlite_database.cpp
+    src/postgresql_database.cpp
 )
 
 # Set output directory for executables
@@ -30,10 +32,31 @@ find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+# Find PostgreSQL
+find_package(PostgreSQL REQUIRED)
+
 if (APPLE)
     include_directories(/opt/homebrew/include)
     # Add httplib library
-    target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog::spdlog fmt::fmt nlohmann_json::nlohmann_json /opt/homebrew/lib/libhiredis.dylib)
+    target_link_libraries(${PROJECT_NAME} 
+        pthread 
+        sqlite3 
+        spdlog::spdlog 
+        fmt::fmt 
+        nlohmann_json::nlohmann_json 
+        /opt/homebrew/lib/libhiredis.dylib
+        ${PostgreSQL_LIBRARIES}
+    )
+    include_directories(${PostgreSQL_INCLUDE_DIRS})
 else()
-    target_link_libraries(${PROJECT_NAME} pthread sqlite3 spdlog::spdlog fmt::fmt nlohmann_json::nlohmann_json hiredis)
+    target_link_libraries(${PROJECT_NAME} 
+        pthread 
+        sqlite3 
+        spdlog::spdlog 
+        fmt::fmt 
+        nlohmann_json::nlohmann_json 
+        hiredis
+        ${PostgreSQL_LIBRARIES}
+    )
+    include_directories(${PostgreSQL_INCLUDE_DIRS})
 endif()
