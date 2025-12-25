@@ -2,8 +2,8 @@
 #include <vector>
 #include <sstream>
 
-RedisManager::RedisManager(const std::string &host, int port)
-    : host(host), port(port), context(nullptr), connected(false)
+RedisManager::RedisManager(const std::string &host, int port, const std::string &password)
+    : host(host), port(port), password(password), context(nullptr), connected(false)
 {
 }
 
@@ -36,6 +36,34 @@ bool RedisManager::connect()
         }
         connected = false;
         return false;
+    }
+
+    // 如果设置了密码，进行认证
+    if (!password.empty())
+    {
+        redisReply *reply = (redisReply *)redisCommand(context, "AUTH %s", password.c_str());
+        if (reply == nullptr)
+        {
+            Logger::error("Redis AUTH命令失败: {}", context->errstr);
+            redisFree(context);
+            context = nullptr;
+            connected = false;
+            return false;
+        }
+
+        bool authSuccess = (reply->type != REDIS_REPLY_ERROR);
+        freeReplyObject(reply);
+
+        if (!authSuccess)
+        {
+            Logger::error("Redis认证失败: 密码错误");
+            redisFree(context);
+            context = nullptr;
+            connected = false;
+            return false;
+        }
+
+        Logger::info("Redis认证成功");
     }
 
     connected = true;

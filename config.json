@@ -5,18 +5,19 @@
             "path": "data/students.db"
         },
         "postgresql": {
-            "host": "192.168.2.146",
+            "host": "8.133.253.127",
             "port": 5432,
             "database": "demo1",
             "username": "postgres",
-            "password": "deju@2025",
+            "password": "Longh123!",
             "connection_pool_size": 5,
             "connection_timeout": 30
         }
     },
     "redis": {
-        "host": "192.168.2.146",
+        "host": "110.42.203.226",
         "port": 6379,
+        "password": "Longh123!",
         "timeout_seconds": 1.5
     },
     "server": {

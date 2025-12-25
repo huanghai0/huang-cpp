@@ -36,7 +36,7 @@ std::unique_ptr<DatabaseInterface> DatabaseManager::createDatabase()
 
 DatabaseManager::DatabaseManager(const ConfigManager &configManager)
     : configManager(&configManager),
-      redisManager(configManager.getRedisHost(), configManager.getRedisPort())
+      redisManager(configManager.getRedisHost(), configManager.getRedisPort(), configManager.getRedisPassword())
 {
     database = createDatabase();
 }

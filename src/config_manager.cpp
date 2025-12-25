@@ -140,6 +140,14 @@ int ConfigManager::getRedisPort() const
     return config.value("redis", json::object()).value("port", 6379);
 }
 
+std::string ConfigManager::getRedisPassword() const
+{
+    if (!loaded)
+        return "";
+
+    return config.value("redis", json::object()).value("password", "");
+}
+
 double ConfigManager::getRedisTimeout() const
 {
     if (!loaded)

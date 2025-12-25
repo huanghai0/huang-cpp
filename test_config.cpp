@@ -12,10 +12,21 @@ int main()
     }
 
     std::cout << "=== 配置测试 ===" << std::endl;
-    std::cout << "数据库路径: " << configManager.getDatabasePath() << std::endl;
     std::cout << "数据库类型: " << configManager.getDatabaseType() << std::endl;
+    std::cout << "SQLite数据库路径: " << configManager.getSqliteDatabasePath() << std::endl;
+
+    if (configManager.getDatabaseType() == "postgresql")
+    {
+        std::cout << "PostgreSQL主机: " << configManager.getPostgresqlHost() << std::endl;
+        std::cout << "PostgreSQL端口: " << configManager.getPostgresqlPort() << std::endl;
+        std::cout << "PostgreSQL数据库: " << configManager.getPostgresqlDatabase() << std::endl;
+        std::cout << "PostgreSQL用户名: " << configManager.getPostgresqlUsername() << std::endl;
+        std::cout << "PostgreSQL密码: " << (configManager.getPostgresqlPassword().empty() ? "空" : "已设置") << std::endl;
+    }
+
     std::cout << "Redis主机: " << configManager.getRedisHost() << std::endl;
     std::cout << "Redis端口: " << configManager.getRedisPort() << std::endl;
+    std::cout << "Redis密码: " << (configManager.getRedisPassword().empty() ? "空" : "已设置") << std::endl;
     std::cout << "Redis超时: " << configManager.getRedisTimeout() << "秒" << std::endl;
     std::cout << "服务器主机: " << configManager.getServerHost() << std::endl;
     std::cout << "服务器端口: " << configManager.getServerPort() << std::endl;

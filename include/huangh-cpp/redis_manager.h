@@ -11,6 +11,7 @@ class RedisManager
 private:
     std::string host;
     int port;
+    std::string password;
     redisContext *context;
     bool connected;
 
@@ -18,7 +19,7 @@ private:
     bool reconnect();
 
 public:
-    RedisManager(const std::string &host = "localhost", int port = 6379);
+    RedisManager(const std::string &host = "localhost", int port = 6379, const std::string &password = "");
     ~RedisManager();
 
     // 连接管理

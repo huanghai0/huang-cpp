@@ -36,6 +36,7 @@ public:
     // Redis配置
     std::string getRedisHost() const;
     int getRedisPort() const;
+    std::string getRedisPassword() const;
     double getRedisTimeout() const;
 
     // 服务器配置
