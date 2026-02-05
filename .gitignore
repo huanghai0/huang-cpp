@@ -1,6 +1,7 @@
 # Build directories
 build/
 bin/
+logs/
 
 # Compiled object files
 *.o
@@ -38,7 +39,6 @@ Makefile
 *.cmake
 
 # Database files
-*.db
 *.sqlite
 *.sqlite3
 
