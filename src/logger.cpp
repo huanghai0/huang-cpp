@@ -16,8 +16,8 @@ bool Logger::initialize(const std::string &logFile)
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true);
 
         // 设置日志格式
-        console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%s:%#] %v");
-        file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%#] %v");
+        console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%t] [%^%l%$] [%s:%#] %v");
+        file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%t] [%l] [%s:%#] %v");
 
         // 创建组合logger
         logger = std::make_shared<spdlog::logger>("main", spdlog::sinks_init_list{console_sink, file_sink});
